@@ -19,6 +19,10 @@ DATA_FILE = pathlib.Path(__file__).parent.parent / "q-vercel-latency.json"
 with open(DATA_FILE, "r") as f:
     telemetry = json.load(f)
 
+# handle preflight manually
+@app.options("/")
+async def preflight(req: Request):
+    return JSONResponse(status_code=200, content={})
 
 @app.post("/")
 async def get_metrics(req: Request):
