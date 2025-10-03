@@ -1,13 +1,13 @@
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 import numpy as np
 import json
 import pathlib
-from fastapi.responses import JSONResponse
 
 app = FastAPI()
 
-# Enable CORS for all origins and POST
+# Ensure CORS middleware is correctly registered
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -15,26 +15,31 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Load the telemetry data once (from bundled JSON file in project root)
 DATA_FILE = pathlib.Path(__file__).parent.parent / "q-vercel-latency.json"
 with open(DATA_FILE, "r") as f:
     telemetry = json.load(f)
+
+# Explicit OPTIONS handler for preflight
+@app.options("/")
+async def options_root():
+    headers = {
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Methods": "POST, OPTIONS",
+        "Access-Control-Allow-Headers": "Content-Type",
+    }
+    return JSONResponse(status_code=204, content=None, headers=headers)
 
 @app.post("/")
 async def get_metrics(req: Request):
     body = await req.json()
     regions = body.get("regions", [])
     threshold = body.get("threshold_ms", 180)
-
     result = {}
 
     for region in regions:
-        # filter records for this region
         records = [r for r in telemetry if r["region"] == region]
-
         if not records:
             continue
-
         latencies = [r["latency_ms"] for r in records]
         uptimes = [r["uptime_pct"] for r in records]
 
@@ -50,4 +55,10 @@ async def get_metrics(req: Request):
             "breaches": breaches,
         }
 
-    return result
+    # Also attach CORS headers on the POST response for strict evaluators
+    headers = {
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Methods": "POST, OPTIONS",
+        "Access-Control-Allow-Headers": "Content-Type",
+    }
+    return JSONResponse(content=result, headers=headers)
