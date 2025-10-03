@@ -1,0 +1,30 @@
+name: Cache Dependencies
+
+on:
+  push:
+    branches:
+      - main  # or master
+  workflow_dispatch:   # optional, allows manual trigger
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      # Step 1: Checkout repo
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      # Step 2: Cache dependencies
+      - name: prime-cache-ac00745
+        id: cache-step
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/pip
+          key: cache-ac00745
+          restore-keys: cache-ac00745
+
+      # Step 3: Print cache hit/miss
+      - name: Show cache result
+        run: echo "Cache hit: ${{ steps.cache-step.outputs.cache-hit }}"
