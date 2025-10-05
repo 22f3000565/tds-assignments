@@ -13,6 +13,7 @@ app.add_middleware(
     allow_origins=["*"],
     allow_methods=["POST", "OPTIONS"],
     allow_headers=["*"],
+    expose_headers=["*"]
 )
 
 DATA_FILE = pathlib.Path(__file__).parent.parent / "q-vercel-latency.json"
