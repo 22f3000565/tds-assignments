@@ -16,7 +16,7 @@ app.add_middleware(
     expose_headers=["*"]
 )
 
-DATA_FILE = pathlib.Path(__file__).parent / "q-vercel-latency.json"
+DATA_FILE = pathlib.Path(__file__).parent.parent / "q-vercel-latency.json"
 with open(DATA_FILE, "r") as f:
     telemetry = json.load(f)
 
