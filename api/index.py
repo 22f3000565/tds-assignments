@@ -7,7 +7,7 @@ import pathlib
 
 app = FastAPI()
 
-# Ensure CORS middleware is correctly registered
+# Enable CORS
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -16,11 +16,10 @@ app.add_middleware(
     expose_headers=["*"]
 )
 
-DATA_FILE = pathlib.Path(__file__).parent.parent / "q-vercel-latency.json"
+DATA_FILE = pathlib.Path(__file__).parent / "q-vercel-latency.json"
 with open(DATA_FILE, "r") as f:
     telemetry = json.load(f)
 
-# Explicit OPTIONS handler for preflight
 @app.options("/")
 async def options_root():
     headers = {
@@ -35,31 +34,34 @@ async def get_metrics(req: Request):
     body = await req.json()
     regions = body.get("regions", [])
     threshold = body.get("threshold_ms", 180)
-    result = {}
+
+    response_regions = []
 
     for region in regions:
         records = [r for r in telemetry if r["region"] == region]
         if not records:
             continue
+
         latencies = [r["latency_ms"] for r in records]
         uptimes = [r["uptime_pct"] for r in records]
 
-        avg_latency = float(np.mean(latencies))
-        p95_latency = float(np.percentile(latencies, 95))
-        avg_uptime = float(np.mean(uptimes))
+        avg_latency = round(float(np.mean(latencies)), 2)
+        p95_latency = round(float(np.percentile(latencies, 95)), 2)
+        avg_uptime = round(float(np.mean(uptimes)), 3)
         breaches = sum(1 for l in latencies if l > threshold)
 
-        result[region] = {
-            "avg_latency": round(avg_latency, 2),
-            "p95_latency": round(p95_latency, 2),
-            "avg_uptime": round(avg_uptime, 3),
-            "breaches": breaches,
-        }
+        response_regions.append({
+            "region": region,
+            "avg_latency": avg_latency,
+            "p95_latency": p95_latency,
+            "avg_uptime": avg_uptime,
+            "breaches": breaches
+        })
 
-    # Also attach CORS headers on the POST response for strict evaluators
     headers = {
         "Access-Control-Allow-Origin": "*",
         "Access-Control-Allow-Methods": "POST, OPTIONS",
         "Access-Control-Allow-Headers": "Content-Type",
     }
-    return JSONResponse(content=result, headers=headers)
+
+    return JSONResponse(content={"regions": response_regions}, headers=headers)
